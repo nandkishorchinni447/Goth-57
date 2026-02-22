@@ -1,0 +1,323 @@
+<!DOCTYPE html><html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Brain Reactor Ultra</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><style>
+:root{
+ --bg:#020617;
+ --card:rgba(15,23,42,.55);
+ --accent:#38bdf8;
+ --success:#22c55e;
+ --error:#f43f5e;
+ --gold:#fbbf24;
+}
+
+*{box-sizing:border-box}
+
+body{
+ margin:0;
+ font-family:Inter,system-ui;
+ color:#fff;
+ display:flex;
+ justify-content:center;
+ align-items:center;
+ min-height:100vh;
+ overflow:hidden;
+
+ background:
+ linear-gradient(rgba(2,6,23,.82),rgba(2,6,23,.92)),
+ url("neural-bg.png");
+
+ background-size:cover;
+ background-position:center;
+ background-repeat:no-repeat;
+ animation:bgMove 22s ease-in-out infinite;
+}
+
+/* animated background motion */
+@keyframes bgMove{
+ 0%{background-position:center 0}
+ 50%{background-position:center -45px}
+ 100%{background-position:center 0}
+}
+
+/* RED FLASH ON WRONG */
+body.flash{
+ animation:flash .35s;
+}
+@keyframes flash{
+ 0%{background-color:#f43f5e}
+ 100%{background-color:transparent}
+}
+
+.container{
+ width:90%;
+ max-width:420px;
+ text-align:center;
+ background:var(--card);
+ padding:2.3rem 1.4rem;
+ border-radius:30px;
+ backdrop-filter:blur(26px);
+ border:1px solid rgba(56,189,248,.25);
+ position:relative;
+ box-shadow:0 0 60px rgba(56,189,248,.18);
+}
+
+.logo-box{
+ width:82px;height:82px;margin:0 auto 18px;
+ background:var(--accent);
+ border-radius:20px;
+ display:flex;align-items:center;justify-content:center;
+ font-size:42px;
+ box-shadow:0 0 40px rgba(56,189,248,.7);
+ animation:pulse 2s infinite;
+}
+@keyframes pulse{
+ 0%,100%{transform:scale(1)}
+ 50%{transform:scale(1.1)}
+}
+
+h1{
+ margin:0;
+ font-size:2.2rem;
+ font-weight:800;
+ letter-spacing:-1px;
+ background:linear-gradient(#fff,#94a3b8);
+ -webkit-background-clip:text;
+ -webkit-text-fill-color:transparent;
+}
+
+.btn-group{display:flex;flex-direction:column;gap:12px;margin-top:28px}
+
+button{
+ padding:16px;
+ font-size:16px;
+ font-weight:700;
+ border:none;
+ border-radius:16px;
+ cursor:pointer;
+ transition:.18s;
+ background:var(--accent);
+ color:#020617;
+}
+button:hover{transform:translateY(-2px);filter:brightness(1.1)}
+
+.option-btn{
+ background:rgba(255,255,255,.05);
+ color:#fff;
+ border:1px solid rgba(255,255,255,.1);
+ font-size:20px;
+ padding:22px;
+}
+
+.progress-bar{
+ height:6px;background:rgba(0,0,0,.35);
+ border-radius:10px;margin:18px 0;overflow:hidden
+}
+.fill{
+ height:100%;
+ width:100%;
+ background:var(--accent);
+ transition:width .05s linear
+}
+
+.task{
+ font-size:40px;
+ font-weight:800;
+ min-height:120px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+}
+
+.hidden{display:none!important}
+.shake{animation:shake .28s}
+@keyframes shake{
+ 25%{transform:translateX(-10px)}
+ 75%{transform:translateX(10px)}
+}
+
+.streak-fire{
+ color:var(--gold);
+ font-weight:900;
+ text-shadow:0 0 10px rgba(251,191,36,.6)
+}
+</style></head><body><!-- HOME --><div class="container" id="homeScreen">
+<div class="logo-box">🧠</div>
+<h1>BRAIN REACTOR</h1>
+<p style="color:#94a3b8;font-size:14px;margin-top:8px">
+Quantum Cognitive Testing
+</p>
+<div class="btn-group">
+<button onclick="initGame('solo')">SOLO BLITZ</button>
+<button onclick="initGame('friend')" style="background:transparent;color:var(--accent);border:2px solid var(--accent)">
+FRIEND VS MODE
+</button>
+</div>
+</div><!-- GAME --><div class="container hidden" id="gameScreen">
+<div style="display:flex;justify-content:space-between;font-size:12px;opacity:.7;font-weight:700">
+<span id="playerLabel">PLAYER 1</span>
+<span id="scoreDisplay">SCORE: 0</span>
+</div>
+<div class="progress-bar"><div class="fill" id="timerBar"></div></div>
+<div class="task" id="taskDisplay"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="optionsBox">
+<button class="option-btn" id="opt0"></button>
+<button class="option-btn" id="opt1"></button>
+<button class="option-btn" id="opt2"></button>
+<button class="option-btn" id="opt3"></button>
+</div>
+</div><!-- PASS --><div class="container hidden" id="passScreen">
+<h1 style="color:var(--accent)">PLAYER 1 DONE</h1>
+<p style="margin:20px 0;color:#94a3b8">
+Hand device to PLAYER 2
+</p>
+<button onclick="startTurn()">START</button>
+</div><!-- RESULT --><div class="container hidden" id="resultScreen">
+<h1 id="resTitle">ANALYSIS COMPLETE</h1>
+<div id="resStats" style="margin:25px 0;font-size:18px;line-height:2"></div>
+<button onclick="location.reload()" style="width:100%;background:white;color:black">
+PLAY AGAIN
+</button>
+</div><script>
+const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+function sfx(f,t,d){
+ const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+ o.type=t;o.frequency.value=f;
+ g.gain.setValueAtTime(.12,audioCtx.currentTime);
+ g.gain.exponentialRampToValueAtTime(.01,audioCtx.currentTime+d);
+ o.connect(g);g.connect(audioCtx.destination);
+ o.start();o.stop(audioCtx.currentTime+d);
+}
+
+let game={
+mode:'solo',
+activePlayer:0,
+scores:[0,0],
+round:0,
+maxRounds:10,
+timer:null,
+answer:null,
+streak:0
+};
+
+function initGame(m){
+ game.mode=m;
+ game.activePlayer=0;
+ game.scores=[0,0];
+ document.getElementById('homeScreen').classList.add('hidden');
+ startTurn();
+}
+
+function startTurn(){
+ game.round=0;
+ game.streak=0;
+ document.getElementById('passScreen').classList.add('hidden');
+ document.getElementById('gameScreen').classList.remove('hidden');
+ document.getElementById('playerLabel').innerText="PLAYER "+(game.activePlayer+1);
+ nextTask();
+}
+
+function nextTask(){
+
+ if(game.mode==='friend' && game.round>=game.maxRounds){
+  if(game.activePlayer===0){
+   game.activePlayer=1;
+   document.getElementById('gameScreen').classList.add('hidden');
+   document.getElementById('passScreen').classList.remove('hidden');
+  }else showResults();
+  return;
+ }
+
+ let type=Math.floor(Math.random()*3);
+ let q,a,opts=[];
+
+ if(type===0){
+  let x=2+Math.floor(Math.random()*9);
+  let y=2+Math.floor(Math.random()*9);
+  q=x+" × "+y;
+  a=x*y;
+  opts=[a,a+2,a-3,a+5].sort(()=>Math.random()-.5);
+ }
+ else if(type===1){
+  const colors=['RED','BLUE','GREEN','YELLOW'];
+  let t=colors[Math.floor(Math.random()*4)];
+  let c=colors[Math.floor(Math.random()*4)];
+  q='<span style="color:'+c.toLowerCase()+'">'+t+'</span>';
+  a=(t===c?'YES':'NO');
+  opts=['YES','NO'];
+ }
+ else{
+  const arr=['⬆️','⬇️','⬅️','➡️'];
+  a=arr[Math.floor(Math.random()*4)];
+  q=a;
+  opts=[...arr].sort(()=>Math.random()-.5);
+ }
+
+ game.answer=a;
+ document.getElementById('taskDisplay').innerHTML=q;
+
+ const btns=document.querySelectorAll('.option-btn');
+ btns.forEach((b,i)=>{
+  if(!opts[i]){b.classList.add('hidden');return;}
+  b.classList.remove('hidden');
+  b.innerText=opts[i];
+  b.onclick=()=>check(opts[i]);
+ });
+
+ startTimer();
+}
+
+function startTimer(){
+ clearInterval(game.timer);
+ const limit=2000;
+ const start=Date.now();
+ game.timer=setInterval(()=>{
+  let p=1-(Date.now()-start)/limit;
+  document.getElementById('timerBar').style.width=(p*100)+'%';
+  if(p<=0)check(null);
+ },20);
+}
+
+function check(val){
+ clearInterval(game.timer);
+
+ if(val===game.answer){
+  sfx(880,'sine',.1);
+  game.streak++;
+  let mult=game.streak>=5?2:game.streak>=3?1.5:1;
+  game.scores[game.activePlayer]+=10*mult;
+  document.getElementById('scoreDisplay').innerHTML=
+  "SCORE: "+Math.floor(game.scores[game.activePlayer])+
+  (mult>1?' <span class="streak-fire">'+mult+'x 🔥</span>':'');
+  game.round++;
+  nextTask();
+ }
+ else{
+  sfx(150,'triangle',.2);
+  document.body.classList.add('flash');
+  setTimeout(()=>document.body.classList.remove('flash'),300);
+  game.streak=0;
+  document.getElementById('gameScreen').classList.add('shake');
+  setTimeout(()=>document.getElementById('gameScreen').classList.remove('shake'),250);
+
+  if(game.mode==='solo') showResults();
+  else{game.round++;nextTask();}
+ }
+}
+
+function showResults(){
+ document.getElementById('gameScreen').classList.add('hidden');
+ document.getElementById('resultScreen').classList.remove('hidden');
+ const res=document.getElementById('resStats');
+
+ if(game.mode==='solo'){
+  res.innerHTML="FINAL SCORE<br><b style='font-size:32px'>"+Math.floor(game.scores[0])+"</b>";
+ }
+ else{
+  let p1=game.scores[0],p2=game.scores[1];
+  let win=p1>p2?"PLAYER 1 WINS":p2>p1?"PLAYER 2 WINS":"DRAW";
+  res.innerHTML=win+"<br><br>P1: "+Math.floor(p1)+"<br>P2: "+Math.floor(p2);
+ }
+}
+</script></body>
+</html>
